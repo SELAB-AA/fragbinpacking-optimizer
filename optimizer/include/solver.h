@@ -2,123 +2,130 @@
 #define SOLVER_H_
 
 #include <array>
-#include <iostream>
 #include <memory>
 
 #include "operators.h"
-#include "problem.h"
 #include "replacers.h"
 #include "selectors.h"
 #include "solution.h"
 
-template<size_t NP = 100, size_t NC = 20, size_t NM = 83, size_t NE = 10, size_t LS = 10, size_t NG = 500, size_t DL = 10>
+namespace optimizer {
+
+/*
+ * The `Solver` class solves a problem using the grouping genetic algorithm.
+ */
+template <std::uint32_t NP = 100u, std::uint32_t NC = 20u,
+          std::uint32_t NM = 83u, std::uint32_t NE = 10u,
+          std::uint32_t LS = 10u, std::uint32_t NG = 500u,
+          std::uint32_t DL = 10u, typename k1 = std::ratio<13u, 10u>,
+          typename k2 = std::ratio<4u, 1u>>
 class Solver {
-	Problem *problem_;
-	const double k1_;
-	const double k2_;
-public:
-	Solver(Problem *problem, double k1 = 1.3, double k2 = 4.0) : problem_(problem), k1_(k1), k2_(k2) {}
-	Solver(const Solver&) = delete;
-	Solver &operator=(const Solver&) = delete;
-	Solution solve(std::array<std::shared_ptr<Solution>, NP> *population, size_t *gen = nullptr, std::vector<size_t> *blocks_over_time = nullptr) const {
-		Solution best_solution(*(*population)[0].get());
-		size_t generation = 0;
-		auto previous = best_solution.size();
-		size_t delta_counter = 0;
+    Problem *problem_;
 
-		// std::cout << "Generation " << generation << ": " << problem_->bin_count() - best_solution.size() << " / " << problem_->lower_bound() << "\n";
+ public:
+    explicit Solver(Problem *problem) : problem_(problem) {}
+    Solver(const Solver &) = delete;
+    Solver &operator=(const Solver &) = delete;
+    Solution
+    solve(std::array<std::unique_ptr<Solution>, NP> *population,
+          std::uint32_t *gen = nullptr,
+          std::vector<std::uint32_t> *blocks_over_time = nullptr) const {
+        Solution best_solution(*(*population)[0]);
+        auto generation = std::uint32_t{};
+        auto previous = best_solution.size();
+        auto delta_counter = std::uint32_t{};
 
-		for (; generation < NG && problem_->bin_count() - best_solution.size() > problem_->lower_bound() && delta_counter < DL; generation++) {
-			std::array<std::shared_ptr<Solution>, NC / 2> g;
-			std::array<std::shared_ptr<Solution>, NC / 2> r;
-			controlled_selection_crossover<NP, NC, NE>(problem_, population, &g, &r);
-			std::array<std::shared_ptr<Solution>, NC> progeny;
+        for (; generation < NG &&
+               problem_->bin_count() - best_solution.size() >
+                   problem_->lower_bound() &&
+               delta_counter < DL;
+             generation++) {
+            std::array<Solution *, NC / 2u> g;
+            std::array<Solution *, NC / 2u> r;
+            controlled_selection_crossover<NP, NC, NE>(problem_, population, &g,
+                                                       &r);
+            std::array<std::unique_ptr<Solution>, NC> progeny;
 
-			/*
-			for (const auto &sol : *population) {
-				std::cout << sol->size() << " ";
-			}
+            for (auto i = 0u; i < NC / 2u; ++i) {
+                progeny[i] = gene_level_crossover<true>(problem_, *g[i], *r[i]);
+                progeny[i + NC / 2u] =
+                    gene_level_crossover<true>(problem_, *r[i], *g[i]);
+            }
 
-			std::cout << "\n";
-			*/
+            controlled_replacement_crossover<NP, NC, NE>(population, &progeny,
+                                                         &r);
 
-			/*for (size_t i = 0; i < NC / 2; i++) {
-				gene_level_crossover(problem_, g[i], r[i], &progeny[i << 1]);
-				gene_level_crossover(problem_, r[i], g[i], &progeny[(i << 1) + 1]);
-			}*/
+            std::vector<Solution *> clones;
+            clones.reserve(NE);
+            std::array<Solution *, NM> mutants;
 
-			for (size_t i = 0; i < NC / 2; i++) {
-				gene_level_crossover(problem_, g[i], r[i], &progeny[i]);
-			}
+            controlled_selection_mutation<NP, NM, NE, LS>(*population, &clones,
+                                                          &mutants);
 
-			for (size_t i = 0; i < NC / 2; i++) {
-				gene_level_crossover(problem_, r[i], g[i], &progeny[i + NC / 2]);
-			}
+            std::sort(clones.begin(), clones.end());
+            std::sort(mutants.begin(), mutants.end());
 
-			controlled_replacement_crossover<NP, NC, NE>(population, &progeny, &r);
+            std::vector<Solution *> pure;
+            pure.reserve(mutants.size());
 
-			std::vector<std::shared_ptr<Solution>> clones;
-			clones.reserve(NE);
-			std::array<std::shared_ptr<Solution>, NM> mutants;
+            std::set_difference(mutants.begin(), mutants.end(), clones.begin(),
+                                clones.end(), std::back_inserter(pure));
 
-			controlled_selection_mutation<NP, NM, NE, LS>(*population, &clones, &mutants);
+            std::vector<std::unique_ptr<Solution>> cloned;
+            cloned.reserve(clones.size());
 
-			std::sort(clones.begin(), clones.end());
-			std::sort(mutants.begin(), mutants.end());
+            std::transform(clones.begin(), clones.end(),
+                           std::back_inserter(cloned), [](const Solution *sol) {
+                               return std::make_unique<Solution>(*sol);
+                           });
 
-			std::vector<std::shared_ptr<Solution>> pure;
-			pure.reserve(mutants.size());
+            for (auto &sol : pure) {
+                adaptive_mutation<k1::num, k1::den, true>(problem_, sol);
+            }
 
-			std::set_difference(mutants.begin(), mutants.end(), clones.begin(), clones.end(), std::back_inserter(pure));
+            for (auto &sol : clones) {
+                adaptive_mutation<k2::num, k2::den, true>(problem_, sol);
+            }
 
-			std::vector<std::shared_ptr<Solution>> cloned;
-			cloned.reserve(clones.size());
+            std::sort(population->begin(), population->end(),
+                      [](const auto &left, const auto &right) {
+                          return left->size() > right->size();
+                      });
 
-			std::transform(clones.begin(), clones.end(), std::back_inserter(cloned), [](const auto &sol) { return std::make_shared<Solution>(*sol); });
+            if (!cloned.empty()) {
+                controlled_replacement_mutation<NP>(population, &cloned);
+            }
 
-			for (auto &sol : pure) {
-				adaptive_mutation(problem_, sol, k1_);
-			}
+            const auto &current_best = (*population)[0];
 
-			for (auto &sol : clones) {
-				adaptive_mutation(problem_, sol, k2_);
-			}
+            if (current_best->size() > best_solution.size()) {
+                best_solution = *current_best;
+            }
 
-			std::sort(population->begin(), population->end(), [](const auto &left, const auto &right) { return left->size() > right->size(); });
+            if (previous == best_solution.size()) {
+                delta_counter++;
+            } else {
+                previous = best_solution.size();
+                delta_counter = 0u;
+            }
 
-			if (!cloned.empty()) {
-				controlled_replacement_mutation<NP>(population, &cloned);
-			}
+            for (auto i = 0u; i < NE; i++) {
+                (*population)[i]->increase_age();
+            }
 
-			const auto &current_best = (*population)[0];
+            if (blocks_over_time) {
+                blocks_over_time->push_back(best_solution.size());
+            }
+        }
 
-			if (current_best->size() > best_solution.size()) {
-				best_solution = *current_best;
-			}
+        if (gen) {
+            *gen = generation;
+        }
 
-			if (previous == best_solution.size()) {
-				delta_counter++;
-			} else {
-				previous = best_solution.size();
-				delta_counter = 0;
-			}
-
-			for (size_t i = 0; i < NE; i++) {
-				(*population)[i]->increase_age();
-			}
-
-			if (blocks_over_time) {
-				blocks_over_time->push_back(best_solution.size());
-			}
-			// std::cout << "Generation " << generation + 1 << ": " << problem_->bin_count() - best_solution.size() << " / " << problem_->lower_bound() << "\n";
-		}
-
-		if (gen) {
-			*gen = generation;
-		}
-
-		return best_solution;
-	}
+        return best_solution;
+    }
 };
+
+} // namespcae optimizer
 
 #endif

@@ -1,52 +1,32 @@
-export LIBNAME := liboptimizer.a
-LIB := $(LIBNAME:%.a=%)
 export BUILD_DIR := build
 export INCLUDE_DIR := include
-export LIB_DIR := lib
-SRC_DIR := src
+export PCG_DIR := dist/pcg-cpp
 export OPTFLAGS := -Ofast -flto
-export COMPILER_FLAGS := -std=c++14 -march=native -mtune=native $(OPTFLAGS) -fno-exceptions -fno-rtti -Wall -pedantic -Wshadow
-CXXFLAGS := $(COMPILER_FLAGS) -I$(INCLUDE_DIR)
-LDFLAGS := $(OPTFLAGS) -L$(LIB_DIR)
-export LDLIBS := -l$(LIBNAME:lib%.a=%)
-SRC := $(wildcard $(SRC_DIR)/*.cpp)
-OBJ := $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-DEP := $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.d $(BUILD_DIR)/$(BIN).d)
+export COMPILER_FLAGS := -std=c++14 -march=native $(OPTFLAGS) -fno-exceptions -fno-rtti -Wall -Wextra -Werror -pedantic -Wshadow -Wmissing-include-dirs -Winvalid-pch -Wformat=2
+CXXFLAGS := $(COMPILER_FLAGS) -DPCG_USE_INLINE_ASM -I$(INCLUDE_DIR) -I$(PCG_DIR)/include
+export LDEXTRA := -fuse-ld=gold
 SUBDIRS := b3test experiment optimizer test
 
 ifeq ($(CXX), g++)
 	AR := gcc-ar
-#else ifeq ($(CXX), clang++)
-#	AR := llvm-ar
+else ifeq ($(CXX), clang++)
+	AR := llvm-ar
 endif
 
-all: $(LIB) subdirs
+all: subdirs
 
-$(LIB): $(LIB_DIR)/$(LIBNAME)
+subdirs: $(SUBDIRS)
 
-$(LIB_DIR)/$(LIBNAME): $(OBJ) | $(LIB_DIR)
-	$(AR) $(ARFLAGS) $@ $(OBJ)
-
-$(LIB_DIR):
-	@mkdir $@
-
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+$(SUBDIRS): $(BUILD_DIR)
+	$(MAKE) -C $@
 
 $(BUILD_DIR):
 	@mkdir $@
 
-subdirs: $(SUBDIRS)
-
-$(SUBDIRS):
-	$(MAKE) -C $@
-
 clean:
 	for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
-	$(RM) $(OBJ) $(DEP) $(LIB_DIR)/$(LIBNAME)
 	$(RM) -d $(BUILD_DIR) 2> /dev/null || true
-	$(RM) -d $(LIB_DIR) 2> /dev/null || true
 
-.PHONY: all clean $(LIB) $(SUBDIRS)
+.PHONY: all clean $(SUBDIRS)
 
 -include $(DEP)
