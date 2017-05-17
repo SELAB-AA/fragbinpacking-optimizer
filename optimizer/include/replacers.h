@@ -90,7 +90,7 @@ void controlled_replacement_mutation(
                        [](const auto &left, const auto &right) {
                            return left->size() > right->size();
                        });
-    std::inplace_merge(population->begin(), it + cloned->size(),
+    std::inplace_merge(population->begin(), it += cloned->size(),
                        population->end(),
                        [](const auto &left, const auto &right) {
                            return left->size() > right->size();

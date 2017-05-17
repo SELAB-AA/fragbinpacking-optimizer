@@ -39,7 +39,7 @@ class Solver {
                problem_->bin_count() - best_solution.size() >
                    problem_->lower_bound() &&
                delta_counter < DL;
-             generation++) {
+             ++generation) {
             std::array<Solution *, NC / 2u> g;
             std::array<Solution *, NC / 2u> r;
             controlled_selection_crossover<NP, NC, NE>(problem_, population, &g,
@@ -103,7 +103,7 @@ class Solver {
             }
 
             if (previous == best_solution.size()) {
-                delta_counter++;
+                ++delta_counter;
             } else {
                 previous = best_solution.size();
                 delta_counter = 0u;
@@ -126,6 +126,6 @@ class Solver {
     }
 };
 
-} // namespcae optimizer
+} // namespace optimizer
 
 #endif

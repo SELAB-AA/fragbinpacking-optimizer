@@ -34,7 +34,7 @@ constexpr ForwardIt dedup(ForwardIt first, ForwardIt last, Count count,
         if (!p(*result, *first)) {
             std::swap(*++result, *first);
         } else {
-            counter++;
+            ++counter;
         }
     }
 
@@ -74,7 +74,9 @@ std::vector<ItemCount> fcount(RandIt begin, RandIt end) {
  */
 template <class RandIt, class Count, class Rng>
 constexpr RandIt sample_inplace(RandIt begin, RandIt end, Count n, Rng &&gen) {
-    for (auto d = std::distance(begin, end); n > 0 && d > 0;
+    for (auto d = std::distance(begin, end);
+         n > Count() &&
+         d > typename std::iterator_traits<RandIt>::difference_type();
          --n, --d, ++begin) {
         auto r = begin;
         std::advance(r, gen(d));

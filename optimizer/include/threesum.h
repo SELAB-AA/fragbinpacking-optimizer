@@ -38,45 +38,37 @@ template <class RandIt, class T>
 constexpr void threesum(RandIt begin, RandIt end, T *out,
                         std::uint32_t bin_count, std::uint32_t capacity) {
     const auto r = bin_count * capacity;
-    if (unlikely(!r || begin == end)) {
-        return;
+
+    assert(r && begin <= --end);
+
+    while (end->size + 2u * begin->size < r) {
+        if (--end < begin) {
+            return;
+        }
     }
 
-    const auto ub_a = r - 2u * (--end)->size;
-    const auto lb_a = 1u + (r - 1u) / 3u;
-
-    for (begin += begin->size > ub_a ? 1u : 0u; begin < end; ++begin) {
-        if (unlikely(begin->size < lb_a)) {
-            break;
+    for (; begin <= end; --end) {
+        while (begin->size + 2u * end->size > r) {
+            if (++begin > end) {
+                return;
+            }
         }
 
-        auto left = begin;
-        auto right = end;
-        const auto trg = r - begin->size;
+        auto p_a = begin;
+        auto p_b = end;
+        const auto target = r - end->size;
 
         do {
-            const auto t = left->size + right->size;
-            if (unlikely(t == trg)) {
-                if (begin->size == left->size) {
-                    if (left->size == right->size) {
-                        out->emplace_back(&*left, &*left, &*left);
-                    } else {
-                        out->emplace_back(&*left, &*left, &*right);
-                    }
-                } else {
-                    if (left->size == right->size) {
-                        out->emplace_back(&*begin, &*left, &*left);
-                    } else {
-                        out->emplace_back(&*begin, &*left, &*right);
-                    }
-                }
-                ++left;
-            } else if (t > trg) {
-                ++left;
+            const auto t = p_a->size + p_b->size;
+            if (t < target) {
+                --p_b;
             } else {
-                --right;
+                if (unlikely(t == target)) {
+                    out->emplace_back(&*p_a, &*p_b, &*end);
+                }
+                ++p_a;
             }
-        } while (left <= right);
+        } while (p_a <= p_b);
     }
 }
 

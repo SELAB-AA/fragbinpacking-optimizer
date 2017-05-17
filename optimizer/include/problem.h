@@ -71,30 +71,29 @@ class Problem {
             return 0u;
         }
 
-        auto possible_blocks = n / 3;
+        auto possible_blocks = n / 3u;
         auto minsplit =
             bin_count > possible_blocks ? bin_count - possible_blocks : 0u;
 
         if (begin == right && slack == 0u) {
-            auto diff = n - bin_count;
-            return minsplit > diff ? minsplit : diff;
+            return std::max(minsplit, n - bin_count);
         }
 
         auto kmax = std::uint32_t{};
 
-        for (auto k = 2u; k < iterations + 1u; ++k) {
+        for (auto k = 2u; k <= iterations; ++k) {
             auto total = std::accumulate(
                 begin, end, std::uint32_t{},
                 [k, bin_capacity](auto lhs, const auto &rhs) {
                     return lhs + rhs.count * u(k, rhs.size, bin_capacity);
                 });
             auto maximum =
-                total ? 1u + ((total - 1u) / (bin_capacity * k)) : 0u;
+                total ? 1u + ((total - 1u) / (bin_capacity * k)) : total;
 
             auto rit = std::make_reverse_iterator(end);
             auto prev = begin;
             for (auto it = begin; it != right; ++it) {
-                while (it->size > bin_capacity - rit->size) {
+                while (rit->size > bin_capacity - it->size) {
                     total += rit->count *
                              (bin_capacity * k - u(k, rit->size, bin_capacity));
                     ++rit;
@@ -104,13 +103,13 @@ class Problem {
                     ++prev;
                 }
                 auto ceiling =
-                    total ? 1u + ((total - 1u) / (bin_capacity * k)) : 0u;
+                    total ? 1u + (total - 1u) / (bin_capacity * k) : total;
                 if (ceiling < maximum) {
                     break;
                 }
                 maximum = ceiling;
             }
-            kmax = maximum > kmax ? maximum : kmax;
+            kmax = std::max(maximum, kmax);
         }
 
         auto total = std::accumulate(begin, end, std::uint32_t{},
@@ -118,7 +117,7 @@ class Problem {
                                          return lhs + rhs.count * rhs.size;
                                      });
 
-        auto l2maximum = total ? 1u + ((total - 1u) / bin_capacity) : 0u;
+        auto l2maximum = total ? 1u + (total - 1u) / bin_capacity : total;
         auto rit = std::make_reverse_iterator(end);
         auto prev = begin;
         for (auto it = begin; it != right; ++it) {
@@ -130,7 +129,7 @@ class Problem {
                 total -= prev->count * prev->size;
                 ++prev;
             }
-            auto ceiling = total ? 1u + ((total - 1u) / bin_capacity) : 0u;
+            auto ceiling = total ? 1u + (total - 1u) / bin_capacity : total;
             if (ceiling < l2maximum) {
                 break;
             }
@@ -250,8 +249,8 @@ class Problem {
                     begin[idx].items().cbegin(),
                     begin[idx].items().cbegin() + n, std::uint32_t{},
                     [](auto lhs, const auto &rhs) { return lhs += rhs->size; });
-                auto bin_count = 1 + ((size - 1) / bin_capacity_);
-                solution->blocks().emplace_back(solution->items().end() - n,
+                auto bin_count = 1u + ((size - 1u) / bin_capacity_);
+                solution->blocks().emplace_back(solution->items().end() -= n,
                                                 solution->items().end(),
                                                 bin_count, size);
                 ++blocks_made;
@@ -298,7 +297,7 @@ class Problem {
                         x /
                         (x + gamma_dist(*problem.env()->rng(),
                                         std::gamma_distribution<>::param_type(
-                                            n + item_counter - 1, 1.0)));
+                                            n + item_counter - 1u, 1.0)));
                     auto slack_change = bino_dist(
                         *problem.env()->rng(),
                         std::binomial_distribution<std::uint32_t>::param_type(
@@ -306,7 +305,7 @@ class Problem {
                     assert(slack_change <= slack);
                     slack_reserve += slack_change;
                     slack -= slack_change;
-                    item_counter = 0;
+                    item_counter = 0u;
                 }
 
                 if (current_block.slack(problem.bin_capacity()) <=
@@ -343,8 +342,7 @@ class Problem {
           optimal22_{}, initial_3_partitions_{} {
         auto sum = std::accumulate(begin, end, std::uint32_t{});
 
-        auto rounded = sum - 1u - (sum - 1u) % bin_capacity + bin_capacity;
-        bin_count_ = rounded / bin_capacity;
+        bin_count_ = 1u + (sum - 1u) / bin_capacity;
 
         if (bin_count) {
             assert(bin_count >= bin_count_ && "bad bin count");

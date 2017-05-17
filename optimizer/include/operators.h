@@ -121,7 +121,7 @@ std::unique_ptr<Solution> inline gene_level_crossover(Problem *problem,
 
     if (item_count != 0u) {
         if (use_b3) {
-            if (item_count >= problem->item_count() - 6) {
+            if (item_count >= problem->item_count() >> 1u) {
                 problem->find_packing(problem->initial_3_partitions_.begin(),
                                       problem->initial_3_partitions_.end(),
                                       &slack, &item_count,
@@ -224,15 +224,15 @@ inline void adaptive_mutation(Problem *problem, Solution *mutant) {
          ++it) {
         const auto range = it->items();
         const auto d = std::distance(range.first, range.second);
-        new_blocks.emplace_back(mutant->items_.begin() += count,
-                                mutant->items_.begin() += count + d,
-                                it->bin_count(), it->size());
-        count += d;
+        const auto end = mutant->items_.begin() += count += d, begin = end - d;
+        new_blocks.emplace_back(begin, end, it->bin_count(), it->size());
     }
     mutant->blocks_ = std::move(new_blocks);
 
     if (use_b3) {
-        if (item_count >= problem->item_count() - 6) {
+        const auto old_size = mutant->blocks_.size();
+
+        if (item_count >= problem->item_count() >> 1u) {
             problem->find_packing(problem->initial_3_partitions_.begin(),
                                   problem->initial_3_partitions_.end(), &slack,
                                   &item_count, &problem->items_.back(), mutant);
@@ -240,6 +240,17 @@ inline void adaptive_mutation(Problem *problem, Solution *mutant) {
             problem->b3(problem->items_.begin(), problem->items_.end(), &slack,
                         &item_count, mutant);
         }
+
+        std::binomial_distribution<> bidist(
+            mutant->blocks_.size() - old_size, 0.1);
+        const auto eliminate = bidist(*problem->env()->rng());
+        for (auto end = mutant->blocks_.cend(), it = end - eliminate; it != end;
+             ++it) {
+            auto pair = it->items();
+            item_count += std::distance(pair.first, pair.second);
+            slack += it->slack(problem->bin_capacity());
+        }
+        mutant->blocks_.resize(mutant->blocks_.size() - eliminate);
     }
 
     if (item_count) {

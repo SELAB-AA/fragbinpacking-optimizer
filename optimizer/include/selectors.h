@@ -24,6 +24,7 @@ template <std::uint32_t NP, std::uint32_t NC, std::uint32_t NE>
 void controlled_selection_crossover(
     Problem *problem, std::array<std::unique_ptr<Solution>, NP> *population,
     std::array<Solution *, NC / 2u> *g, std::array<Solution *, NC / 2u> *r) {
+    static_assert(NC >= 2u, "NC must be at least 2");
     std::array<Solution *, NC> p_copy1;
     std::array<Solution *, NP - NE> p_copy2;
     std::transform(population->cbegin(), population->cbegin() + NC,
@@ -37,10 +38,15 @@ void controlled_selection_crossover(
                                *problem->env()->rng()),
                 r->size(), r->begin());
 
-    for (auto i = 0u; i < NC / 2u; i++) {
+    auto i = 0u;
+    for (; i < NC / 2u - 1u; ++i) {
         if ((*g)[i] == (*r)[i]) {
-            std::swap((*g)[i], (*g)[(i + NC / 2u - 1u) % (NC / 2u)]);
+            std::swap((*g)[i], (*g)[i + 1u]);
+            ++i;
         }
+    }
+    if (i == NC / 2u - 1u && (*g)[NC / 2u - 1u] == (*r)[NC / 2u - 1u]) {
+        std::swap((*g)[NC / 2u - 2u], (*g)[NC / 2u - 1u]);
     }
 }
 
