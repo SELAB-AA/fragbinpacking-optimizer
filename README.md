@@ -1,3 +1,3 @@
-[![DOI](https://zenodo.org/badge/22548/SELAB-AA/fragbinpacking-optimizer.svg)](https://zenodo.org/badge/latestdoi/22548/SELAB-AA/fragbinpacking-optimizer)
+[![DOI](https://zenodo.org/badge/60608790.svg)](https://zenodo.org/badge/latestdoi/60608790)
 # fragbinpacking-optimizer
 Solver for the Fragmentable Items Bin Packing Problem
