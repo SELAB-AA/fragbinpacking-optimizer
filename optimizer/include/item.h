@@ -1,6 +1,7 @@
 #ifndef ITEM_H_
 #define ITEM_H_
 
+#include <cstdint>
 #include <iostream>
 
 namespace optimizer {
@@ -22,3 +23,4 @@ struct ItemCount {
 } // namespace optimizer
 
 #endif
+

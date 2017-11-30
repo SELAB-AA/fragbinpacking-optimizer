@@ -3,13 +3,15 @@
 
 #include <cstddef>
 #include <iterator>
+#include <limits>
 #include <random>
+#include <type_traits>
 
 namespace optimizer {
 
 /*
  * Similar to std::partition, but works on an already sorted range and the
- * predicate is inverted and there is an argument `cpimt` for the maximum
+ * predicate is inverted and there is an argument `count` for the maximum
  * nummber of unique elements to find before returning.
 *
  * Input sorted range and count of maximum number of unique entries to find.
@@ -64,6 +66,26 @@ std::vector<ItemCount> fcount(RandIt begin, RandIt end) {
 }
 
 /*
+ * Generates a bounded uniform random variate.
+ */
+template <typename Rng>
+constexpr std::uint32_t bounded_rand(std::uint32_t n, Rng &&gen) {
+    static_assert(std::remove_reference<Rng>::type::max() ==
+                          std::numeric_limits<std::uint32_t>::max() &&
+                      std::remove_reference<Rng>::type::min() ==
+                          std::numeric_limits<std::uint32_t>::min(),
+                  "Range of Rng must be full");
+    auto p = static_cast<std::uint64_t>(gen()) * n;
+    if (static_cast<std::uint32_t>(p) < n) {
+        const auto t = -n % n;
+        while (static_cast<std::uint32_t>(p) < t) {
+            p = static_cast<std::uint64_t>(gen()) * n;
+        }
+    }
+    return static_cast<std::uint32_t>(p >> 32u);
+}
+
+/*
  * Similar to std::partition and std::shuffle. Randomly moves n elements
  * in order to the beginning of the range.
  *
@@ -74,17 +96,36 @@ std::vector<ItemCount> fcount(RandIt begin, RandIt end) {
  */
 template <class RandIt, class Count, class Rng>
 constexpr RandIt sample_inplace(RandIt begin, RandIt end, Count n, Rng &&gen) {
+    typedef typename std::remove_reference<Rng>::type::result_type result_t;
     for (auto d = std::distance(begin, end);
          n > Count() &&
          d > typename std::iterator_traits<RandIt>::difference_type();
          --n, --d, ++begin) {
         auto r = begin;
-        std::advance(r, gen(d));
+        std::advance(r, bounded_rand(static_cast<result_t>(d), gen));
         std::swap(*begin, *r);
     }
     return begin;
 }
 
+/*
+ *  Reimplementation of std::shuffle.
+ */
+template <typename RandIt, typename Rng>
+constexpr void shuffle(RandIt begin, RandIt end, Rng &&gen) {
+    typedef typename std::iterator_traits<RandIt>::difference_type delta_t;
+    typedef typename std::remove_reference<Rng>::type::result_type result_t;
+    static_assert(std::is_same<std::uint32_t, result_t>::value, "Wrong type");
+    auto count = std::distance(begin, end);
+    while (count > typename std::iterator_traits<RandIt>::difference_type(1)) {
+        const auto chosen = static_cast<delta_t>(
+            bounded_rand(static_cast<result_t>(count--), gen));
+        using std::swap;
+        swap(*(begin + chosen), *--end);
+    }
+}
+
 } // namespace optimizer
 
 #endif
+

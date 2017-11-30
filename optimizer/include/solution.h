@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "item.h"
@@ -25,14 +27,18 @@ class Solution {
      */
     class Block {
         friend std::ostream &operator<<(std::ostream &os, const Block &block) {
-            std::sort(block.begin_, block.end_,
-                      [](const auto &l, const auto &r) { return l < r; });
-            auto it = block.begin_;
-            os << '(' << (*it)->size;
-            for (++it; it != block.end_; ++it) {
-                os << ", " << (*it)->size;
+            if (block.begin_ == block.end_) {
+                os << "()";
+            } else {
+                std::sort(block.begin_, block.end_,
+                          [](const auto &l, const auto &r) { return l < r; });
+                auto it = block.begin_;
+                os << '(' << (*it)->size;
+                for (++it; it != block.end_; ++it) {
+                    os << ", " << (*it)->size;
+                }
+                os << ')';
             }
-            os << ')';
             return os;
         }
         std::vector<ItemCount *>::iterator begin_;
@@ -51,18 +57,22 @@ class Solution {
               std::uint32_t size)
             : begin_{begin}, end_{end}, bin_count_{bin_count}, size_{size} {}
         void put(ItemCount *item, std::uint32_t bin_capacity) {
-            size_ += item->size;
-            if (size_ > capacity(bin_capacity)) {
-                ++bin_count_;
+            if (item) {
+                size_ += item->size;
+                if (size_ > capacity(bin_capacity)) {
+                    ++bin_count_;
+                }
             }
             ++end_;
         }
+        void complete() { end_ = std::remove(begin_, end_, nullptr); }
         std::uint32_t slack(std::uint32_t bin_capacity) const {
             return capacity(bin_capacity) - size_;
         }
         std::uint32_t score(std::uint32_t bin_capacity) const {
-            return std::distance(begin_, end_) + slack(bin_capacity) +
-                   bin_count_ - 1u;
+            const auto items = std::distance(begin_, end_);
+            return items ? items + slack(bin_capacity) + bin_count_ - 1u
+                         : std::numeric_limits<std::uint32_t>::max();
         }
         std::uint32_t size() const { return size_; }
         std::pair<std::vector<ItemCount *>::iterator,
@@ -156,3 +166,4 @@ class Solution {
 } // namespace optimizer
 
 #endif
+

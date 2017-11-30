@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <random>
@@ -51,10 +52,11 @@ int main(int argc, char **argv) {
     std::array<std::unique_ptr<optimizer::Solution>, POPULATION_SIZE>
         population;
 
-    std::vector<std::uint32_t> item_sizes(item_count);
+    std::vector<std::uint32_t> item_sizes;
+    item_sizes.reserve(item_count);
 
-    std::generate(item_sizes.begin(), item_sizes.end(),
-                  [&] { return size_dist(*env.rng()); });
+    std::generate_n(std::back_inserter(item_sizes), item_count,
+                    [&] { return size_dist(*env.rng()); });
 
     // env.reseed();
     // std::cout << "random: " << (*env.rng())() << "\n";
@@ -67,7 +69,7 @@ int main(int argc, char **argv) {
     optimizer::Problem problem(&env, item_sizes.cbegin(), item_sizes.cend(),
                                bin_capacity);
 
-    if (problem.item_count()) {
+    if (!problem.solved()) {
         auto found_optimal = false;
 
         for (auto i = 0u; i < population.size(); ++i) {
@@ -90,6 +92,27 @@ int main(int argc, char **argv) {
             best_solution = optimizer::Solver<POPULATION_SIZE>(&problem).solve(
                 &population, &gen);
         }
+    } else {
+        if (problem.bin_count() >= problem.item_count()) {
+            best_solution.items().reserve(problem.item_count());
+            best_solution.blocks().reserve(problem.bin_count());
+            for (auto &v : problem.items()) {
+                std::fill_n(std::back_inserter(best_solution.items()), v.count,
+                            &v);
+            }
+            for (auto it = best_solution.items().begin();
+                 it != best_solution.items().end(); ++it) {
+                best_solution.blocks().emplace_back(it, it, 1u, 0u);
+                best_solution.blocks().back().put(*it, problem.bin_capacity());
+            }
+            std::fill_n(std::back_inserter(best_solution.blocks()),
+                        problem.bin_count() - problem.item_count(),
+                        optimizer::Solution::Block(best_solution.items().end(),
+                                                   best_solution.items().end(),
+                                                   1u, 0u));
+        } else {
+            best_solution = *problem.generate_individual<false>();
+        }
     }
 
     end = std::chrono::high_resolution_clock::now();
@@ -108,15 +131,13 @@ int main(int argc, char **argv) {
 
     std::cout << "OptGap: "
               << static_cast<double>(problem.original_item_count() +
-                                     problem.original_slack() +
                                      problem.lower_bound()) /
-                     (problem.original_item_count() + problem.original_slack() +
-                      problem.bin_count() - best_solution.size())
+                     (problem.original_item_count() + problem.bin_count() -
+                      best_solution.size())
               << '\n';
-    auto nominator =
-        problem.item_count() + problem.slack() + problem.lower_bound();
-    auto denominator = problem.item_count() + problem.slack() +
-                       problem.bin_count() - best_solution.size();
+    auto nominator = problem.item_count() + problem.lower_bound();
+    auto denominator =
+        problem.item_count() + problem.bin_count() - best_solution.size();
     std::cout << "OptGap (reduced): "
               << static_cast<double>(nominator ? nominator : 1) /
                      (denominator ? denominator : 1)
@@ -126,3 +147,4 @@ int main(int argc, char **argv) {
         std::cout << "===OPTIMAL==\n";
     }
 }
+

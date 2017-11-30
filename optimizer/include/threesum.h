@@ -39,7 +39,11 @@ constexpr void threesum(RandIt begin, RandIt end, T *out,
                         std::uint32_t bin_count, std::uint32_t capacity) {
     const auto r = bin_count * capacity;
 
-    assert(r && begin <= --end);
+    if(!r || begin == end) {
+        return;
+    }
+
+    --end;
 
     while (end->size + 2u * begin->size < r) {
         if (--end < begin) {
@@ -78,3 +82,4 @@ constexpr void threesum(RandIt begin, RandIt end, T *out,
 #undef unlikely
 
 #endif
+

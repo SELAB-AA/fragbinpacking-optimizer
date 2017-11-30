@@ -5,7 +5,7 @@ export OPTFLAGS := -Ofast -flto
 export COMPILER_FLAGS := -std=c++14 -march=native $(OPTFLAGS) -fno-exceptions -fno-rtti -Wall -Wextra -Werror -pedantic -Wshadow -Wmissing-include-dirs -Winvalid-pch -Wformat=2
 CXXFLAGS := $(COMPILER_FLAGS) -DPCG_USE_INLINE_ASM -I$(INCLUDE_DIR) -I$(PCG_DIR)/include
 export LDEXTRA := -fuse-ld=gold
-SUBDIRS := b3test experiment optimizer test
+SUBDIRS := b3test experiment experiment2 optimizer test
 
 ifeq ($(CXX), g++)
 	AR := gcc-ar

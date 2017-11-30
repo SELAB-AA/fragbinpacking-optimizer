@@ -52,7 +52,7 @@ void controlled_selection_crossover(
 
 /*
  * Performs controlled selection for mutation. Selects `NM` individuals from the
- * population, possilby cloning some of them and mutating others.
+ * population, possibly cloning some of them and mutating others.
  */
 template <std::uint32_t NP, std::uint32_t NM, std::uint32_t NE,
           std::uint32_t LS>
@@ -72,3 +72,4 @@ constexpr void controlled_selection_mutation(
 } // namespace optimizer
 
 #endif
+

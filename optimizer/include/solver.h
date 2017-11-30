@@ -17,7 +17,7 @@ namespace optimizer {
 template <std::uint32_t NP = 100u, std::uint32_t NC = 20u,
           std::uint32_t NM = 83u, std::uint32_t NE = 10u,
           std::uint32_t LS = 10u, std::uint32_t NG = 500u,
-          std::uint32_t DL = 10u, typename k1 = std::ratio<13u, 10u>,
+          std::uint32_t DL = 100u, typename k1 = std::ratio<13u, 10u>,
           typename k2 = std::ratio<4u, 1u>>
 class Solver {
     Problem *problem_;
@@ -129,3 +129,4 @@ class Solver {
 } // namespace optimizer
 
 #endif
+

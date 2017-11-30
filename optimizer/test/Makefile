@@ -15,7 +15,10 @@ OBJ := $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 DEP := $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.d)
 TARGET := $(SRC:$(SRC_DIR)/%.cpp=%)
 
-all: $(TARGET)
+all: $(BUILD_DIR) $(TARGET)
+
+$(BUILD_DIR):
+	@mkdir $@
 
 %: $(BUILD_DIR)/%.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
